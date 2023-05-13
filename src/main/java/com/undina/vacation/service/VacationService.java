@@ -2,11 +2,10 @@ package com.undina.vacation.service;
 
 import com.undina.vacation.dto.VacationDto;
 import com.undina.vacation.exception.NotFoundDayStartOrCountDays;
-import com.undina.vacation.exception.StartVacantionAfterFinishException;
+import com.undina.vacation.exception.StartVacationAfterFinishException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.Month;
@@ -17,27 +16,35 @@ public class VacationService {
     private static final BigDecimal AVERAGE_COUNT_DAYS_IN_MONTH = BigDecimal.valueOf(29.3);
     private static final double NDFL = 0.13;
 
+    /**
+     * Из тз не совсем понятно, как должна работать программа с указанием дат отпуска, поэтому рассматриваю все возможные
+     * случаи,  в реальной жизни уточнила бы этот вопрос до написания кода
+     */
     public BigDecimal getAmountOfVacationPay(VacationDto vacationDto) {
-
-        if (vacationDto.getDaysOfVacation() == null && vacationDto.getDayStart() == null) {
-            throw new NotFoundDayStartOrCountDays("Не указана дата начала отпуска или количество дней отпуска");
+        if (vacationDto.getDaysOfVacation() == null &&
+                (vacationDto.getDayStart() == null || vacationDto.getDayEnd() == null)) {
+            throw new NotFoundDayStartOrCountDays("Не указана дата начала отпуска/ окончания отпуска или количество " +
+                    "дней отпуска");
         }
         Integer daysOfVacation = vacationDto.getDaysOfVacation();
         if (vacationDto.getDayStart() != null && vacationDto.getDayEnd() != null) {
             if (!vacationDto.getDayStart().isBefore(vacationDto.getDayEnd())) {
-                throw new StartVacantionAfterFinishException("Дата начала отпуска не может быть позже или равна дате " +
+                throw new StartVacationAfterFinishException("Дата начала отпуска не может быть позже или равна дате " +
                         "выхода на работу");
             }
             daysOfVacation = getCountDays(vacationDto.getDayStart(), vacationDto.getDayEnd());
         } else if (vacationDto.getDaysOfVacation() != null && vacationDto.getDayStart() != null) {
-            LocalDate dayEnd = vacationDto.getDayStart().plusDays(vacationDto.getDaysOfVacation() + 1L);
+            LocalDate dayEnd = vacationDto.getDayStart().plusDays(vacationDto.getDaysOfVacation());
             daysOfVacation = getCountDays(vacationDto.getDayStart(), dayEnd);
+        } else if (vacationDto.getDaysOfVacation() != null && vacationDto.getDayEnd() != null) {
+            LocalDate dayStart = vacationDto.getDayEnd().minusDays(vacationDto.getDaysOfVacation());
+            daysOfVacation = getCountDays(dayStart, vacationDto.getDayEnd());
         }
         return getAmount(vacationDto.getAverageSalary(), daysOfVacation);
     }
 
     BigDecimal getAmount(BigDecimal averageSalary, int daysOfVacation) {
-        BigDecimal sumWithNDFLForOneDay = averageSalary.divide(AVERAGE_COUNT_DAYS_IN_MONTH,  10, RoundingMode.HALF_UP);
+        BigDecimal sumWithNDFLForOneDay = averageSalary.divide(AVERAGE_COUNT_DAYS_IN_MONTH, 10, RoundingMode.HALF_UP);
         BigDecimal sumWithNDFL = sumWithNDFLForOneDay.multiply(BigDecimal.valueOf(daysOfVacation));
         return sumWithNDFL.multiply(BigDecimal.valueOf(1 - NDFL)).setScale(2, RoundingMode.HALF_UP);
     }
@@ -73,5 +80,4 @@ public class VacationService {
                 .filter(daysNotHolidays)
                 .count();
     }
-
 }
