@@ -1,4 +1,4 @@
-package com.undina.vacation;
+package com.undina.vacation.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.undina.vacation.dto.VacationDto;
@@ -127,6 +127,24 @@ class VacationControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getAmountOfVacationPayMinSalaryException() throws Exception {
+        VacationDto vacationDto = VacationDto.builder()
+                .averageSalary(BigDecimal.valueOf(-1))
+                .daysOfVacation(9)
+                .dayEnd(LocalDate.of(2023, 5, 2))
+                .build();
+
+        mvc.perform(get("/calculacte")
+                .content(mapper.writeValueAsString(vacationDto))
+                .characterEncoding(StandardCharsets.UTF_8)
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(mvcResult -> mvcResult.getResolvedException().getClass()
+                        .equals(MethodArgumentNotValidException.class));
     }
 
     @Test
